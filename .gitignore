@@ -31,4 +31,8 @@ server/dist/
 
 *.log
 .vscode/
+<<<<<<< HEAD
 .idea/
+=======
+.idea/
+>>>>>>> bdfc688ff5a6c7201ce8a95c5a0dcb9279d4949c
