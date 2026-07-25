@@ -25,7 +25,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import NotificationBox from '../components/common/NotificationBox';
-import LiveIdCardTracker from '../components/idCard/LiveIdCardTracker';
+import LiveIdCardTracker from '../components/idcard/LiveIdCardTracker';
 import axiosInstance from '../api/axiosInstance';
 
 export const DashboardPage = () => {
