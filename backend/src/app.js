@@ -13,6 +13,7 @@ import userRoutes from './routes/user.routes.js';
 import idCardRoutes from './routes/idCard.routes.js';
 import printRoutes from './routes/print.routes.js';
 import visitorRoutes from './routes/visitor.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/id-cards', idCardRoutes);
 app.use('/api/v1/print', printRoutes);
 app.use('/api/v1/visitors', visitorRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Centralized 404 Route Handler
 app.use('*', (req, res) => {

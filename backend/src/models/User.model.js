@@ -49,6 +49,39 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    phone: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    designation: {
+      type: String,
+      default: 'Staff Member',
+      trim: true,
+    },
+    joiningDate: {
+      type: Date,
+      default: Date.now,
+    },
+    noticePeriodDays: {
+      type: Number,
+      default: 30,
+    },
+    bloodGroup: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    emergencyContact: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    address: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     // AES-256 Encrypted Sensitive Fields (e.g. National ID / SSN, Emergency Contact)
     nationalIdEncrypted: {
       type: String,

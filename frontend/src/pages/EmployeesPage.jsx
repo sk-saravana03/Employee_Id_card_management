@@ -168,16 +168,6 @@ export const EmployeesPage = () => {
           >
             <Download className="w-4 h-4 text-emerald-600" /> Export Excel
           </button>
-
-          <button
-            onClick={() => {
-              setSelectedEmployee(null);
-              setIsModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all transform active:scale-95"
-          >
-            <Plus className="w-4 h-4" /> Add New Member
-          </button>
         </div>
       </div>
 

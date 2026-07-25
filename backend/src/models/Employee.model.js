@@ -71,6 +71,7 @@ const EmployeeSchema = new mongoose.Schema(
         'NOTICE_PERIOD',
         'AUTO_DEACTIVATED',
         'ARCHIVED',
+        'INACTIVE',
       ],
       default: 'RECRUITMENT',
     },

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Badge } from '../components/common/Badge';
 import { ShieldCheck, Bell, Search, User, LogOut, ChevronDown, Building2, KeyRound } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import NotificationBox from '../components/common/NotificationBox';
 
 export const TopNav = () => {
   const { user, logout } = useAuth();
@@ -50,6 +51,9 @@ export const TopNav = () => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-3">
+        {/* Live Notification Bell Box */}
+        <NotificationBox isWidget={false} />
+
         {/* System Active Status Pill */}
         <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded text-[11px] font-medium text-emerald-700">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>

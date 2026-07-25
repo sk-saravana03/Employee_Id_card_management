@@ -20,8 +20,8 @@ const router = express.Router();
 router.use(protect);
 router.use(verifySession);
 
-router.get('/', getDepartments);
-router.get('/:id', getDepartmentById);
+router.get('/', authorize('Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer'), getDepartments);
+router.get('/:id', authorize('Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer'), getDepartmentById);
 
 router.post(
   '/',

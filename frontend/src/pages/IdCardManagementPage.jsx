@@ -13,6 +13,7 @@ import {
   Palette,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 import { idCardService } from '../services/idCard.service';
 import { employeeService } from '../services/employee.service';
 import IdCardPreview from '../components/idcard/IdCardPreview';
@@ -20,6 +21,9 @@ import DigitalIdCardModal from '../components/idcard/DigitalIdCardModal';
 import { getDesignationTheme, getAllThemes } from '../utils/designationTheme';
 
 export const IdCardManagementPage = () => {
+  const { user } = useAuth();
+  const userRole = user?.role?.name || 'Employee';
+
   const [idCards, setIdCards] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
@@ -270,6 +274,63 @@ export const IdCardManagementPage = () => {
 
                           <td className="p-3 text-right">
                             <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                              {/* Stage 2: HR Approval (Only shown to HR/Admin) */}
+                              {card.status === 'REQUESTED_PENDING_HR' && userRole === 'HR/Admin' && (
+                                <button
+                                  title="Approve as HR / Manager"
+                                  onClick={async () => {
+                                    try {
+                                      await idCardService.hrApprove(card._id);
+                                      toast.success('Approved by HR. Sent to Admin.');
+                                      fetchIdCards();
+                                    } catch (err) {
+                                      toast.error('HR Approval failed');
+                                    }
+                                  }}
+                                  className="px-2 py-1 text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm"
+                                >
+                                  HR Approve
+                                </button>
+                              )}
+
+                              {/* Stage 3: Admin Authorization (Only shown to Super Admin) */}
+                              {card.status === 'APPROVED_BY_HR' && userRole === 'Super Admin' && (
+                                <button
+                                  title="Authorize as Super Admin"
+                                  onClick={async () => {
+                                    try {
+                                      await idCardService.adminApprove(card._id);
+                                      toast.success('Authorized by Admin. Sent to Print Queue.');
+                                      fetchIdCards();
+                                    } catch (err) {
+                                      toast.error('Admin Approval failed');
+                                    }
+                                  }}
+                                  className="px-2 py-1 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm"
+                                >
+                                  Admin Approve
+                                </button>
+                              )}
+
+                              {/* Stage 4: Print Center Processing (Only shown to Printer Operator or Super Admin) */}
+                              {(card.status === 'APPROVED_BY_ADMIN' || card.status === 'PRINTING') && (userRole === 'Printer Operator' || userRole === 'Super Admin') && (
+                                <button
+                                  title="Mark as Printed"
+                                  onClick={async () => {
+                                    try {
+                                      await idCardService.markPrinted(card._id, 'PRINTED');
+                                      toast.success('Marked physical card as Printed & Issued!');
+                                      fetchIdCards();
+                                    } catch (err) {
+                                      toast.error('Print status update failed');
+                                    }
+                                  }}
+                                  className="px-2 py-1 text-[10px] font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-sm flex items-center gap-1"
+                                >
+                                  <Printer className="w-3 h-3" /> Issue Card
+                                </button>
+                              )}
+
                               <button
                                 title="Digital Mobile Wallet Pass"
                                 onClick={() => {

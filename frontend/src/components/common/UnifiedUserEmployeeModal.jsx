@@ -1,58 +1,38 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, UserPlus, Shield, Building, Layers, Lock, Phone, Mail, Calendar, Camera, ChevronDown } from 'lucide-react';
+import { X, UserPlus, Shield, Building, Layers, Lock, Phone, Mail, Calendar, Camera, ChevronDown, Sparkles, HeartPulse, MapPin } from 'lucide-react';
 import PhotoCaptureInput from './PhotoCaptureInput';
+import { getDynamicDesignations } from '../../utils/designations.util';
+import { generatePredefinedPassword } from '../../utils/password.util';
 
-/**
- * Maps department names (case-insensitive substring match) to the system roles
- * that make sense for that department. Falls back to ALL roles if no match.
- *
- * Keys are lowercase department-name substrings.
- * Values are arrays of role names that should appear for that department.
- */
 const DEPARTMENT_ROLE_MAP = {
-  // Security / Guard department → Security Officer role
   security: ['Security Officer', 'Super Admin'],
-  guard:    ['Security Officer'],
-  safety:   ['Security Officer'],
+  guard: ['Security Officer'],
+  safety: ['Security Officer'],
 
-  // IT / Engineering / Tech → Printer Operator (for print staff) or Employee
-  it:          ['Employee', 'Printer Operator', 'HR/Admin', 'Super Admin'],
-  technology:  ['Employee', 'Printer Operator', 'Super Admin'],
+  it: ['Employee', 'Printer Operator', 'HR/Admin', 'Super Admin'],
+  technology: ['Employee', 'Printer Operator', 'Super Admin'],
   engineering: ['Employee', 'Super Admin'],
-  software:    ['Employee', 'Super Admin'],
-  devops:      ['Employee', 'Super Admin'],
+  software: ['Employee', 'Super Admin'],
+  devops: ['Employee', 'Super Admin'],
 
-  // HR / People / Talent → HR/Admin
   'human resources': ['HR/Admin', 'Super Admin'],
-  hr:        ['HR/Admin', 'Super Admin'],
-  talent:    ['HR/Admin', 'Super Admin'],
-  people:    ['HR/Admin', 'Super Admin'],
-  training:  ['HR/Admin', 'Employee'],
+  hr: ['HR/Admin', 'Super Admin'],
+  talent: ['HR/Admin', 'Super Admin'],
+  people: ['HR/Admin', 'Super Admin'],
 
-  // Print / Operations
-  print:      ['Printer Operator', 'HR/Admin', 'Super Admin'],
+  print: ['Printer Operator', 'HR/Admin', 'Super Admin'],
   operations: ['Printer Operator', 'Employee', 'Super Admin'],
-  logistics:  ['Employee', 'Super Admin'],
-  warehouse:  ['Employee', 'Printer Operator'],
 
-  // Finance / Accounting
-  finance:    ['Employee', 'HR/Admin', 'Super Admin'],
+  finance: ['Employee', 'HR/Admin', 'Super Admin'],
   accounting: ['Employee', 'HR/Admin'],
 
-  // Sales / Marketing / Business
-  sales:      ['Employee', 'Super Admin'],
-  marketing:  ['Employee', 'HR/Admin'],
-  business:   ['Employee', 'HR/Admin', 'Super Admin'],
+  sales: ['Employee', 'Super Admin'],
+  marketing: ['Employee', 'HR/Admin'],
 
-  // Admin / Management
-  admin:      ['HR/Admin', 'Super Admin'],
+  admin: ['HR/Admin', 'Super Admin'],
   management: ['HR/Admin', 'Super Admin'],
-  executive:  ['Super Admin'],
-  leadership: ['Super Admin', 'HR/Admin'],
-
-  // Default fallback key — used when no match
-  default:    null, // null = show all roles
+  default: null,
 };
 
 export const UnifiedUserEmployeeModal = ({
@@ -65,8 +45,8 @@ export const UnifiedUserEmployeeModal = ({
   departments = [],
   isLoading = false,
 }) => {
-  // Track which department name is selected for role filtering
   const [selectedDeptName, setSelectedDeptName] = useState('');
+  const [selectedBranchName, setSelectedBranchName] = useState('');
 
   const {
     register,
@@ -86,29 +66,54 @@ export const UnifiedUserEmployeeModal = ({
   const enableLogin = watch('enableLogin');
   const avatarUrl = watch('avatarUrl');
   const watchedDept = watch('department');
+  const watchedBranch = watch('branch');
+  const watchedFirstName = watch('firstName');
+  const watchedPhone = watch('phone');
 
-  // Derive the selected department name whenever the department field changes
+  // Derive department & branch names
   useEffect(() => {
     if (watchedDept) {
       const deptObj = departments.find((d) => d._id === watchedDept || d._id === watchedDept?._id);
-      setSelectedDeptName(deptObj?.name?.toLowerCase() || '');
+      setSelectedDeptName(deptObj?.name || '');
     } else {
       setSelectedDeptName('');
     }
   }, [watchedDept, departments]);
 
+  useEffect(() => {
+    if (watchedBranch) {
+      const branchObj = branches.find((b) => b._id === watchedBranch || b._id === watchedBranch?._id);
+      setSelectedBranchName(branchObj?.name || '');
+    } else {
+      setSelectedBranchName('');
+    }
+  }, [watchedBranch, branches]);
+
+  // Compute dynamic designations based on branch and department
+  const dynamicDesignationOptions = useMemo(() => {
+    return getDynamicDesignations(selectedDeptName, selectedBranchName);
+  }, [selectedDeptName, selectedBranchName]);
+
+  // Auto-fill predefined password (First 4 letters of name + Last 4 digits of phone)
+  useEffect(() => {
+    if (!initialData && (watchedFirstName || watchedPhone)) {
+      const generatedPass = generatePredefinedPassword(watchedFirstName, watchedPhone);
+      setValue('password', generatedPass);
+    }
+  }, [watchedFirstName, watchedPhone, initialData, setValue]);
+
   // Filtered roles based on selected department name
   const filteredRoles = useMemo(() => {
-    if (!selectedDeptName) return roles; // no dept selected → show all
-    // Try each key in DEPARTMENT_ROLE_MAP as a substring match
+    if (!selectedDeptName) return roles;
+    const lowerDept = selectedDeptName.toLowerCase();
     for (const [key, allowedNames] of Object.entries(DEPARTMENT_ROLE_MAP)) {
       if (key === 'default') continue;
-      if (selectedDeptName.includes(key)) {
-        if (!allowedNames) return roles; // explicit null = all roles
+      if (lowerDept.includes(key)) {
+        if (!allowedNames) return roles;
         return roles.filter((r) => allowedNames.includes(r.name));
       }
     }
-    return roles; // no match → show all
+    return roles;
   }, [selectedDeptName, roles]);
 
   useEffect(() => {
@@ -125,17 +130,22 @@ export const UnifiedUserEmployeeModal = ({
         department: initialData.department?._id || initialData.department || '',
         joiningDate: initialData.joiningDate ? new Date(initialData.joiningDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         noticePeriodDays: initialData.noticePeriodDays || 30,
+        bloodGroup: initialData.bloodGroup || '',
+        emergencyContact: initialData.emergencyContact || '',
+        address: initialData.address || '',
         role: initialData.role?._id || initialData.role || '',
         status: initialData.status || 'ACTIVE',
         enableLogin: true,
       });
     } else {
+      const initialPass = generatePredefinedPassword('Employee', '1234');
       reset({
         enableLogin: true,
         noticePeriodDays: 30,
         joiningDate: new Date().toISOString().split('T')[0],
         status: 'ACTIVE',
         avatarUrl: '',
+        password: initialPass,
       });
     }
   }, [initialData, reset]);
@@ -154,10 +164,10 @@ export const UnifiedUserEmployeeModal = ({
           <div>
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-emerald-600" />
-              {initialData ? 'Edit Unified Member Record' : 'Add New Member & System Account'}
+              {initialData ? 'Edit User & Employee Profile' : 'Provision New System User Account'}
             </h3>
             <p className="text-xs text-slate-500">
-              Unified creation form: Automatically provisions both Employee Record & System User Credentials.
+              Single Source of Truth: Auto-generates ID & Provisions both User Credentials & Employee Record.
             </p>
           </div>
           <button
@@ -190,7 +200,7 @@ export const UnifiedUserEmployeeModal = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Sarah"
+                  placeholder="e.g. Saravanan"
                   {...register('firstName', { required: 'First name is required' })}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 />
@@ -203,7 +213,7 @@ export const UnifiedUserEmployeeModal = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Jenkins"
+                  placeholder="e.g. Kumar"
                   {...register('lastName', { required: 'Last name is required' })}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 />
@@ -218,7 +228,7 @@ export const UnifiedUserEmployeeModal = ({
                 </label>
                 <input
                   type="email"
-                  placeholder="sarah.jenkins@enterprise.com"
+                  placeholder="saravanan@enterprise.com"
                   {...register('email', { required: 'Corporate email is required' })}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 />
@@ -227,52 +237,70 @@ export const UnifiedUserEmployeeModal = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Phone Number
+                  Phone Number (Used for Predefined Password)
                 </label>
                 <input
                   type="tel"
-                  placeholder="+1 (555) 019-2834"
+                  placeholder="+91 9876543210"
                   {...register('phone')}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Additional Full Details: Blood Group, Emergency Contact, Address */}
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <HeartPulse className="w-3.5 h-3.5 text-rose-500" /> Blood Group
+                </label>
+                <select
+                  {...register('bloodGroup')}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="">Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Emergency Contact
+                </label>
+                <input
+                  type="text"
+                  placeholder="+91 9123456789 (Kin)"
+                  {...register('emergencyContact')}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-500" /> Location / Address
+                </label>
+                <input
+                  type="text"
+                  placeholder="City / Address"
+                  {...register('address')}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Employment Details */}
+          {/* Section 2: Employment Details & Dynamic Designation */}
           <div className="space-y-3 pt-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 pb-1 border-b border-slate-100">
-              2. Employment & Organization Structure
+              2. Employment & Dynamic Designation Catalog
             </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Employee ID Number
-                </label>
-                <div className="w-full px-3 py-2 text-xs font-mono font-bold border border-emerald-200 rounded-lg bg-emerald-50 text-emerald-700 flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  {initialData?.employeeId
-                    ? initialData.employeeId
-                    : 'Auto-generated on save (e.g. EMP260000001)'}
-                </div>
-              </div>
-
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Designation / Role Title <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Senior Security Specialist"
-                  {...register('designation', { required: 'Designation is required' })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
-                />
-                {errors.designation && <span className="text-[10px] text-rose-500">{errors.designation.message}</span>}
-              </div>
-            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -281,7 +309,7 @@ export const UnifiedUserEmployeeModal = ({
                 </label>
                 <select
                   {...register('branch', { required: 'Branch is required' })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-semibold"
                 >
                   <option value="">Select Branch</option>
                   {branches.map((b) => (
@@ -299,7 +327,7 @@ export const UnifiedUserEmployeeModal = ({
                 </label>
                 <select
                   {...register('department', { required: 'Department is required' })}
-                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-semibold"
                 >
                   <option value="">Select Department</option>
                   {departments.map((d) => (
@@ -309,6 +337,51 @@ export const UnifiedUserEmployeeModal = ({
                   ))}
                 </select>
                 {errors.department && <span className="text-[10px] text-rose-500">{errors.department.message}</span>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>
+                    Designation (Dynamic Dropdown) <span className="text-rose-500">*</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    {watchedBranch && watchedDept ? 'Unlocked for selection' : 'Locked'}
+                  </span>
+                </label>
+
+                {/* DYNAMIC DESIGNATION SELECT DROPDOWN - REQUIRES BRANCH AND DEPT FIRST */}
+                <select
+                  disabled={!watchedBranch || !watchedDept}
+                  {...register('designation', { required: 'Designation is required' })}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-semibold disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {!watchedBranch || !watchedDept
+                      ? '⚠️ Select Branch & Department first'
+                      : 'Select Dynamic Designation'}
+                  </option>
+                  {watchedBranch && watchedDept && dynamicDesignationOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+                {errors.designation && <span className="text-[10px] text-rose-500">{errors.designation.message}</span>}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Auto-generated Employee ID
+                </label>
+                <div className="w-full px-3 py-2 text-xs font-mono font-bold border border-emerald-200 rounded-lg bg-emerald-50 text-emerald-700 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {initialData?.employeeId
+                    ? initialData.employeeId
+                    : 'Auto-generated on save (e.g. EMP260000001)'}
+                </div>
               </div>
             </div>
 
@@ -338,12 +411,12 @@ export const UnifiedUserEmployeeModal = ({
             </div>
           </div>
 
-          {/* Section 3: System Login Credentials & System Role */}
+          {/* Section 3: System Login Credentials & Predefined Password */}
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-emerald-600" />
-                <span className="text-xs font-bold text-slate-900">System Access & Login Account</span>
+                <span className="text-xs font-bold text-slate-900">System Access & Predefined Password</span>
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-emerald-700">
@@ -363,7 +436,6 @@ export const UnifiedUserEmployeeModal = ({
                     System Authorization Role <span className="text-rose-500">*</span>
                   </label>
 
-                  {/* Department context hint */}
                   {selectedDeptName && filteredRoles.length < roles.length && (
                     <p className="text-[10px] text-indigo-600 bg-indigo-50 border border-indigo-100 rounded px-2 py-1 mb-1.5 flex items-center gap-1">
                       <ChevronDown className="w-3 h-3" />
@@ -386,19 +458,21 @@ export const UnifiedUserEmployeeModal = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {initialData ? 'New Password (Optional)' : 'Account Password *'}
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                    <span>Predefined Account Password</span>
+                    <span className="text-[10px] text-emerald-600 font-mono font-bold">
+                      Rule: First 4 Name + Last 4 Phone
+                    </span>
                   </label>
+
                   <input
-                    type="password"
-                    placeholder={initialData ? 'Leave blank to keep unchanged' : 'Min 8 chars (e.g. Pass@123)'}
-                    {...register('password', {
-                      required: !initialData && enableLogin ? 'Password is required' : false,
-                      minLength: { value: 6, message: 'Minimum 6 characters' },
-                    })}
-                    className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                    type="text"
+                    {...register('password')}
+                    className="w-full px-3 py-2 text-xs font-mono font-bold border border-emerald-300 bg-emerald-50/50 text-slate-900 rounded-lg focus:ring-2 focus:ring-emerald-500"
                   />
-                  {errors.password && <span className="text-[10px] text-rose-500">{errors.password.message}</span>}
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Pre-filled automatically as e.g. <strong className="text-emerald-700">Sara3210</strong>. Admin can customize if required.
+                  </p>
                 </div>
               </div>
             )}

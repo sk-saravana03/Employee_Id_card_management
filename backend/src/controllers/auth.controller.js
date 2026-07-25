@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import User from '../models/User.model.js';
+import Employee from '../models/Employee.model.js';
 import Session from '../models/Session.model.js';
 import {
   generateAccessToken,
@@ -52,6 +53,22 @@ const login = async (req, res) => {
         success: false,
         message: 'Invalid credentials. Please verify corporate email and password.',
       });
+    }
+
+    // Joining Date Activation Check
+    if (user.joiningDate) {
+      const now = new Date();
+      const joining = new Date(user.joiningDate);
+      if (now >= joining && user.status === 'INACTIVE') {
+        user.status = 'ACTIVE';
+        await user.save();
+        console.log(`[Auth Controller] Auto-activated account on joining date: ${user.email}`);
+      } else if (now < joining) {
+        return res.status(403).json({
+          success: false,
+          message: `Account is inactive until joining date (${joining.toLocaleDateString()}). Access will be enabled on your joining date.`,
+        });
+      }
     }
 
     if (user.status !== 'ACTIVE') {
@@ -470,6 +487,66 @@ const getMe = async (req, res) => {
   }
 };
 
+/**
+ * @route   PUT /api/v1/auth/profile
+ * @desc    Every user can update their personal details & sensitive data (AES-256 encrypted)
+ * @access  Private
+ */
+const updateProfile = async (req, res) => {
+  try {
+    const { phone, emergencyContact, address, bloodGroup, avatarUrl, nationalId } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User profile not found.' });
+    }
+
+    if (phone !== undefined) {
+      user.phone = phone;
+      user.setSensitivePhone(phone); // AES-256 Encrypted
+    }
+
+    if (nationalId !== undefined && nationalId.trim() !== '') {
+      user.setSensitiveNationalId(nationalId); // AES-256 Encrypted
+    }
+
+    if (emergencyContact !== undefined) user.emergencyContact = emergencyContact;
+    if (address !== undefined) user.address = address;
+    if (bloodGroup !== undefined) user.bloodGroup = bloodGroup;
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+
+    await user.save();
+
+    // Synchronize Employee Record
+    const employee = await Employee.findOne({ email: user.email });
+    if (employee) {
+      if (phone !== undefined) employee.phone = phone;
+      if (avatarUrl !== undefined) employee.avatarUrl = avatarUrl;
+      await employee.save();
+    }
+
+    await recordAuditLog({
+      userId: user._id,
+      action: 'USER_PROFILE_UPDATED_AES256',
+      module: 'AUTH',
+      details: { email: user.email, phoneEncrypted: !!user.phoneEncrypted, nationalIdEncrypted: !!user.nationalIdEncrypted },
+      req,
+    });
+
+    const updatedUserObj = user.toObject();
+    delete updatedUserObj.password;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Personal profile and AES-256 encrypted security data updated successfully.',
+      data: { user: updatedUserObj },
+    });
+  } catch (error) {
+    console.error('[Update Profile Error]:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update personal profile.' });
+  }
+};
+
 export {
   login,
   logout,
@@ -479,4 +556,5 @@ export {
   changePassword,
   verifyEmail,
   getMe,
+  updateProfile,
 };

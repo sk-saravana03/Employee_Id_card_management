@@ -15,6 +15,9 @@ import {
   ChevronRight,
   ShieldAlert,
   BrainCircuit,
+  Bell,
+  FileSpreadsheet,
+  Clock,
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -33,22 +36,22 @@ export const Sidebar = () => {
           roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
         },
         {
-          name: 'Employee Directory',
+          name: 'Employee Lifecycle',
           path: '/employees',
           icon: Users,
-          roles: ['Super Admin', 'HR/Admin'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
         },
         {
-          name: 'ID Card Management',
+          name: 'Identity Mgmt (ID Cards)',
           path: '/id-cards',
           icon: CreditCard,
-          roles: ['Super Admin', 'HR/Admin', 'Printer Operator'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
         },
         {
-          name: 'Print Queue & Telemetry',
+          name: 'Print Center Queue',
           path: '/print-queue',
           icon: Printer,
-          roles: ['Super Admin', 'HR/Admin', 'Printer Operator'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
         },
         {
           name: 'Visitor Management',
@@ -59,25 +62,25 @@ export const Sidebar = () => {
       ],
     },
     {
-      title: 'ORGANIZATION',
+      title: 'ORGANIZATION & SECURITY',
       items: [
         {
           name: 'Branch Governance',
           path: '/branches',
           icon: Building,
-          roles: ['Super Admin', 'HR/Admin'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer'],
         },
         {
           name: 'Departments',
           path: '/departments',
           icon: Layers,
-          roles: ['Super Admin', 'HR/Admin'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer'],
         },
         {
-          name: 'User System Roles',
+          name: 'User Accounts Governance',
           path: '/users',
           icon: ShieldAlert,
-          roles: ['Super Admin', 'HR/Admin'],
+          roles: ['Super Admin', 'HR/Admin', 'Employee'],
         },
       ],
     },
@@ -94,9 +97,7 @@ export const Sidebar = () => {
     },
   ];
 
-  // Toggle the floating AI assistant panel
   const handleAiClick = () => {
-    // Dispatch a custom event that AiAssistant listens for
     window.dispatchEvent(new CustomEvent('ai:open'));
   };
 

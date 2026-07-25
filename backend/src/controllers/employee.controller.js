@@ -57,15 +57,40 @@ export const getEmployees = async (req, res) => {
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
     const sortOptions = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
-    const [employees, total] = await Promise.all([
-      Employee.find(query)
+    // Retrieve employees from User database as single source of truth
+    const [users, total] = await Promise.all([
+      User.find(query)
         .populate('branch', 'name code city')
         .populate('department', 'name code')
+        .populate('role', 'name description')
         .sort(sortOptions)
         .skip(skip)
         .limit(parseInt(limit, 10)),
-      Employee.countDocuments(query),
+      User.countDocuments(query),
     ]);
+
+    // Format users into employee records structure expected by UI
+    const employees = users.map((u) => {
+      const obj = u.toObject();
+      return {
+        _id: obj._id,
+        employeeId: obj.employeeId,
+        firstName: obj.firstName,
+        lastName: obj.lastName,
+        email: obj.email,
+        phone: obj.phone || '',
+        avatarUrl: obj.avatarUrl || '',
+        designation: obj.designation || 'Staff Member',
+        branch: obj.branch,
+        department: obj.department,
+        role: obj.role,
+        joiningDate: obj.joiningDate || obj.createdAt,
+        noticePeriodDays: obj.noticePeriodDays || 30,
+        status: obj.status || 'ACTIVE',
+        createdAt: obj.createdAt,
+        updatedAt: obj.updatedAt,
+      };
+    });
 
     return res.status(200).json({
       success: true,

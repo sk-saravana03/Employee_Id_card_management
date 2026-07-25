@@ -3,6 +3,23 @@ import Employee from '../models/Employee.model.js';
 import Role from '../models/Role.model.js';
 import { recordAuditLog } from '../services/audit.service.js';
 import { generateEmployeeId } from '../services/idGenerator.service.js';
+import { createNotification } from '../services/notification.service.js';
+import { sendWelcomeCredentialsEmail } from '../services/email.service.js';
+
+/**
+ * Computes predefined password: First 4 letters of name + Last 4 digits of phone number
+ */
+const generatePredefinedPasswordServer = (firstName = '', phone = '') => {
+  const cleanName = (firstName || 'User').trim().replace(/[^a-zA-Z]/g, '');
+  let namePart = cleanName.slice(0, 4);
+  if (namePart.length < 4) {
+    namePart = (namePart + 'User').slice(0, 4);
+  }
+  const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+  const digitsOnly = (phone || '').replace(/\D/g, '');
+  const phonePart = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : '1234';
+  return `${formattedName}${phonePart}`;
+};
 
 /**
  * @route   GET /api/v1/users
@@ -110,6 +127,9 @@ export const createUser = async (req, res) => {
       avatarUrl,
       joiningDate,
       noticePeriodDays,
+      bloodGroup,
+      emergencyContact,
+      address,
       status,
     } = req.body;
 
@@ -122,13 +142,17 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // ── 2. Auto-generate Employee ID: [3-LETTER-CODE][YY][6-DIGIT-SEQ] ────
-    //       e.g.  EMP260000001  /  HRA260000003  /  SAD260000001
+    // ── 2. Predefined Password (First 4 letters of name + Last 4 digits of phone) ─
+    const finalPassword = password && password.trim().length >= 6
+      ? password.trim()
+      : generatePredefinedPasswordServer(firstName, phone);
+
+    // ── 3. Auto-generate Employee ID: [3-LETTER-CODE][YY][6-DIGIT-SEQ] ────
     const employeeId = await generateEmployeeId(roleDoc.name);
 
-    console.log(`[ID Generator] Generated Employee ID: ${employeeId}  (role: ${roleDoc.name})`);
+    console.log(`[ID Generator] Generated Employee ID: ${employeeId}  (role: ${roleDoc.name}, password: ${finalPassword})`);
 
-    // ── 3. Guard against duplicates (email uniqueness) ──────────────────────
+    // ── 4. Guard against duplicates (email uniqueness) ──────────────────────
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       return res.status(400).json({
@@ -137,24 +161,35 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // ── 4. Create System User ───────────────────────────────────────────────
+    const parsedJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
+    const isFutureJoining = parsedJoiningDate > new Date();
+    const computedStatus = status ? status : (isFutureJoining ? 'INACTIVE' : 'ACTIVE');
+
+    // ── 5. Create System User with Full Details ──────────────────────────────
     const user = new User({
       employeeId,
       firstName,
       lastName,
       email: email.toLowerCase(),
-      password,
+      password: finalPassword,
       role,
       branch: branch || null,
       department: department || null,
+      phone: phone || '',
+      designation: designation || 'Staff Member',
+      joiningDate: parsedJoiningDate,
+      noticePeriodDays: noticePeriodDays ? parseInt(noticePeriodDays, 10) : 30,
+      bloodGroup: bloodGroup || '',
+      emergencyContact: emergencyContact || '',
+      address: address || '',
       isVerified: true,
-      status: status || 'ACTIVE',
+      status: computedStatus,
       avatarUrl: avatarUrl || '',
     });
 
     await user.save();
 
-    // ── 5. Synchronize Unified Employee Record ──────────────────────────────
+    // ── 6. Synchronize Unified Employee Record ──────────────────────────────
     const employee = await Employee.create({
       employeeId,
       firstName,
@@ -165,14 +200,14 @@ export const createUser = async (req, res) => {
       designation: designation || 'Staff Member',
       branch: branch || null,
       department: department || null,
-      joiningDate: joiningDate ? new Date(joiningDate) : new Date(),
+      joiningDate: parsedJoiningDate,
       noticePeriodDays: noticePeriodDays ? parseInt(noticePeriodDays, 10) : 30,
-      status: status || 'ACTIVE',
+      status: computedStatus,
       lifecycleHistory: [
         {
-          status: status || 'ACTIVE',
+          status: computedStatus,
           date: new Date(),
-          reason: 'Unified System User Account Provisioning',
+          reason: isFutureJoining ? 'Awaiting joining date activation' : 'Unified System User Account Provisioning',
           updatedBy: req.user._id,
         },
       ],
@@ -186,6 +221,23 @@ export const createUser = async (req, res) => {
       req,
     });
 
+    // Send module notification & Real-time industrial email
+    await createNotification({
+      targetRole: 'HR/Admin',
+      title: 'New User Account Provisioned',
+      message: `User ${firstName} ${lastName} (${employeeId}) provisioned with role ${roleDoc.name}.`,
+      type: 'USER_PROVISIONED',
+      link: '/users',
+    });
+
+    sendWelcomeCredentialsEmail(
+      user.email,
+      `${firstName} ${lastName}`,
+      employeeId,
+      finalPassword,
+      roleDoc.name
+    );
+
     const userObj = user.toObject();
     delete userObj.password;
 
@@ -193,8 +245,8 @@ export const createUser = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: `Unified User & Employee account created successfully. ID: ${employeeId}`,
-      data: { user: userObj, employee, employeeId },
+      message: `Unified User & Employee account created successfully. ID: ${employeeId}. Predefined Password: ${finalPassword}`,
+      data: { user: userObj, employee, employeeId, predefinedPassword: finalPassword },
     });
   } catch (error) {
     console.error('[Create User Error]:', error.message || error);

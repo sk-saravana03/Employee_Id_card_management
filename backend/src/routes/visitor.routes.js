@@ -29,8 +29,8 @@ router.post(
 router.get('/', getVisitors);
 router.get('/:id', getVisitorById);
 
-// Approval: HR/Admin + Security Officer + Super Admin can approve/reject
-router.patch('/:id/approval', authorize('Super Admin', 'HR/Admin', 'Security Officer'), updateVisitorApproval);
+// Approval: HR/Admin & Super Admin accept/approve visitor passes
+router.patch('/:id/approval', authorize('Super Admin', 'HR/Admin'), updateVisitorApproval);
 
 // Check-In / Check-Out: Security gate operations — Security Officer only
 router.post('/:id/check-in',  authorize('Super Admin', 'Security Officer'), checkInVisitor);

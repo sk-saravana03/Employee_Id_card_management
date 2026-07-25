@@ -1,6 +1,50 @@
 import Department from '../models/Department.model.js';
 import Employee from '../models/Employee.model.js';
+import User from '../models/User.model.js';
+import Role from '../models/Role.model.js';
 import { recordAuditLog } from '../services/audit.service.js';
+import { createNotification } from '../services/notification.service.js';
+
+/**
+ * Automatically updates user's department, branch, role, and designation when appointed as Department Head
+ */
+const assignDepartmentHeadDetails = async (userId, departmentObj) => {
+  if (!userId) return;
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    user.department = departmentObj._id;
+    user.branch = departmentObj.branch;
+    user.designation = `${departmentObj.name} Department Head`;
+
+    const hrRole = await Role.findOne({ name: 'HR/Admin' });
+    if (hrRole && user.role?.toString() !== hrRole._id.toString()) {
+      user.role = hrRole._id;
+    }
+
+    await user.save();
+
+    const emp = await Employee.findOne({ email: user.email });
+    if (emp) {
+      emp.department = departmentObj._id;
+      emp.branch = departmentObj.branch;
+      emp.designation = user.designation;
+      await emp.save();
+    }
+
+    await createNotification({
+      recipient: user._id,
+      title: 'Appointed as Department Head',
+      message: `You have been appointed as Department Head of ${departmentObj.name}. Your system role and department context have been updated.`,
+      type: 'SYSTEM',
+      link: '/departments',
+    });
+    console.log(`[Department Controller] User ${user.email} appointed as Head of ${departmentObj.name}`);
+  } catch (err) {
+    console.error('[Assign Dept Head Error]:', err);
+  }
+};
 
 /**
  * @route   GET /api/v1/departments
@@ -102,6 +146,10 @@ export const createDepartment = async (req, res) => {
       departmentHead: departmentHead || null,
     });
 
+    if (departmentHead) {
+      await assignDepartmentHeadDetails(departmentHead, department);
+    }
+
     await recordAuditLog({
       userId: req.user._id,
       action: 'DEPARTMENT_CREATED',
@@ -138,7 +186,12 @@ export const updateDepartment = async (req, res) => {
     if (name) department.name = name;
     if (code) department.code = code.toUpperCase();
     if (description !== undefined) department.description = description;
-    if (departmentHead !== undefined) department.departmentHead = departmentHead || null;
+    if (departmentHead !== undefined) {
+      department.departmentHead = departmentHead || null;
+      if (departmentHead) {
+        await assignDepartmentHeadDetails(departmentHead, department);
+      }
+    }
     if (status) department.status = status;
 
     await department.save();

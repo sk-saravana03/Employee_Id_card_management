@@ -9,6 +9,7 @@ import {
   changePassword,
   verifyEmail,
   getMe,
+  updateProfile,
 } from '../controllers/auth.controller.js';
 import {
   loginValidator,
@@ -34,6 +35,7 @@ router.use(protect);
 router.use(verifySession);
 
 router.get('/me', getMe);
+router.put('/profile', updateProfile);
 router.post('/change-password', changePasswordValidator, validate, changePassword);
 
 export default router;

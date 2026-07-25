@@ -22,6 +22,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import NotificationBox from '../components/common/NotificationBox';
+import LiveIdCardTracker from '../components/idCard/LiveIdCardTracker';
 
 export const DashboardPage = () => {
   const { user, setUser } = useAuth();
@@ -81,6 +83,16 @@ export const DashboardPage = () => {
           >
             <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Refresh Session
           </Button>
+        </div>
+      </div>
+
+      {/* Live Physical ID Card Stepper & Push Notification Widgets */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <LiveIdCardTracker />
+        </div>
+        <div className="lg:col-span-1">
+          <NotificationBox isWidget={true} />
         </div>
       </div>
 

@@ -45,8 +45,37 @@ const IdCardSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['DRAFT', 'REQUESTED', 'APPROVED', 'PRINTING', 'PRINTED', 'DELIVERED', 'REVOKED'],
-      default: 'REQUESTED',
+      enum: [
+        'DRAFT',
+        'REQUESTED_PENDING_HR',
+        'APPROVED_BY_HR',
+        'APPROVED_BY_ADMIN',
+        'PRINTING',
+        'PRINTED',
+        'DELIVERED',
+        'REJECTED',
+        'REVOKED',
+      ],
+      default: 'REQUESTED_PENDING_HR',
+    },
+    approvalWorkflow: {
+      hrApproval: {
+        status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        approvedAt: Date,
+        comment: { type: String, default: '' },
+      },
+      adminApproval: {
+        status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        approvedAt: Date,
+        comment: { type: String, default: '' },
+      },
+      printingStatus: {
+        status: { type: String, enum: ['QUEUED', 'PRINTING', 'PRINTED', 'DELIVERED'], default: 'QUEUED' },
+        printedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        printedAt: Date,
+      },
     },
     versionHistory: [
       {
