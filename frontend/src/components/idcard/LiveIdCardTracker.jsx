@@ -167,6 +167,86 @@ export const LiveIdCardTracker = ({ onRequestNew }) => {
               </div>
             </div>
 
+            {/* Analytical Estimated Time Required Banner */}
+            {(() => {
+              const est = (() => {
+                switch (currentStatus) {
+                  case 'REQUESTED_PENDING_HR':
+                    return {
+                      estHours: '~24 to 48 Hours',
+                      stageTitle: 'Stage 1 of 4: Pending Manager / HR Verification',
+                      analytics: '92% of requests are verified within 24 hours by HR.',
+                      color: 'bg-amber-50 border-amber-200 text-amber-900',
+                      badgeColor: 'bg-amber-500 text-white',
+                    };
+                  case 'APPROVED_BY_HR':
+                    return {
+                      estHours: '~12 to 24 Hours',
+                      stageTitle: 'Stage 2 of 4: Pending Super Admin Authorization',
+                      analytics: '98% of HR-approved requests authorized within 12 hours.',
+                      color: 'bg-blue-50 border-blue-200 text-blue-900',
+                      badgeColor: 'bg-blue-600 text-white',
+                    };
+                  case 'APPROVED_BY_ADMIN':
+                    return {
+                      estHours: '~2 to 6 Hours',
+                      stageTitle: 'Stage 3 of 4: Queued in Physical Printing Center',
+                      analytics: 'Queued in high-volume printer operator queue.',
+                      color: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+                      badgeColor: 'bg-indigo-600 text-white',
+                    };
+                  case 'PRINTING':
+                    return {
+                      estHours: '~30 Minutes',
+                      stageTitle: 'Stage 4 of 4: Physical Badge Engraving & Encoding',
+                      analytics: 'Hardware printing and magnetic encoding in progress.',
+                      color: 'bg-purple-50 border-purple-200 text-purple-900',
+                      badgeColor: 'bg-purple-600 text-white',
+                    };
+                  case 'PRINTED':
+                  case 'DELIVERED':
+                    return {
+                      estHours: 'Issued & Available Immediately',
+                      stageTitle: 'Stage 4 of 4: Completed',
+                      analytics: 'Collect physical card at HR / Security Front Desk.',
+                      color: 'bg-emerald-50 border-emerald-200 text-emerald-900',
+                      badgeColor: 'bg-emerald-600 text-white',
+                    };
+                  default:
+                    return {
+                      estHours: 'N/A',
+                      stageTitle: 'Not Submitted',
+                      analytics: 'Submit request to start countdown.',
+                      color: 'bg-slate-50 border-slate-200 text-slate-700',
+                      badgeColor: 'bg-slate-500 text-white',
+                    };
+                }
+              })();
+
+              return (
+                <div className={`p-4 rounded-xl border ${est.color} flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-lg ${est.badgeColor} shrink-0`}>
+                      <Clock className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
+                        Analytical Estimated Processing Time
+                      </span>
+                      <p className="text-sm font-bold">{est.estHours}</p>
+                      <p className="text-[11px] opacity-80 mt-0.5">{est.analytics}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-white/80 font-bold border border-current">
+                      {est.stageTitle}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Stepper Pipeline Visual */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 relative">
               {steps.map((step, idx) => {

@@ -58,7 +58,7 @@ export const UnifiedUserEmployeeModal = ({
   } = useForm({
     defaultValues: {
       enableLogin: true,
-      noticePeriodDays: 30,
+      noticePeriodDays: 0,
       joiningDate: new Date().toISOString().split('T')[0],
     },
   });
@@ -91,8 +91,12 @@ export const UnifiedUserEmployeeModal = ({
 
   // Compute dynamic designations based on branch and department
   const dynamicDesignationOptions = useMemo(() => {
-    return getDynamicDesignations(selectedDeptName, selectedBranchName);
-  }, [selectedDeptName, selectedBranchName]);
+    const opts = getDynamicDesignations(selectedDeptName, selectedBranchName);
+    if (initialData?.designation && !opts.includes(initialData.designation)) {
+      return [initialData.designation, ...opts];
+    }
+    return opts;
+  }, [selectedDeptName, selectedBranchName, initialData]);
 
   // Auto-fill predefined password (First 4 letters of name + Last 4 digits of phone)
   useEffect(() => {
@@ -118,6 +122,10 @@ export const UnifiedUserEmployeeModal = ({
 
   useEffect(() => {
     if (initialData) {
+      const branchId = typeof initialData.branch === 'object' ? initialData.branch?._id : initialData.branch;
+      const deptId = typeof initialData.department === 'object' ? initialData.department?._id : initialData.department;
+      const roleId = typeof initialData.role === 'object' ? initialData.role?._id : initialData.role;
+
       reset({
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
@@ -126,14 +134,14 @@ export const UnifiedUserEmployeeModal = ({
         avatarUrl: initialData.avatarUrl || '',
         employeeId: initialData.employeeId || '',
         designation: initialData.designation || '',
-        branch: initialData.branch?._id || initialData.branch || '',
-        department: initialData.department?._id || initialData.department || '',
+        branch: branchId || '',
+        department: deptId || '',
         joiningDate: initialData.joiningDate ? new Date(initialData.joiningDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        noticePeriodDays: initialData.noticePeriodDays || 30,
+        noticePeriodDays: initialData.noticePeriodDays ?? 0,
         bloodGroup: initialData.bloodGroup || '',
         emergencyContact: initialData.emergencyContact || '',
         address: initialData.address || '',
-        role: initialData.role?._id || initialData.role || '',
+        role: roleId || '',
         status: initialData.status || 'ACTIVE',
         enableLogin: true,
       });
@@ -141,14 +149,26 @@ export const UnifiedUserEmployeeModal = ({
       const initialPass = generatePredefinedPassword('Employee', '1234');
       reset({
         enableLogin: true,
-        noticePeriodDays: 30,
+        noticePeriodDays: 0,
         joiningDate: new Date().toISOString().split('T')[0],
         status: 'ACTIVE',
         avatarUrl: '',
         password: initialPass,
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        employeeId: '',
+        designation: '',
+        branch: branches[0]?._id || '',
+        department: departments[0]?._id || '',
+        bloodGroup: '',
+        emergencyContact: '',
+        address: '',
+        role: roles[0]?._id || '',
       });
     }
-  }, [initialData, reset]);
+  }, [initialData, isOpen, reset, branches, departments, roles]);
 
   if (!isOpen) return null;
 
@@ -354,16 +374,16 @@ export const UnifiedUserEmployeeModal = ({
 
                 {/* DYNAMIC DESIGNATION SELECT DROPDOWN - REQUIRES BRANCH AND DEPT FIRST */}
                 <select
-                  disabled={!watchedBranch || !watchedDept}
+                  disabled={!initialData && (!watchedBranch || !watchedDept)}
                   {...register('designation', { required: 'Designation is required' })}
                   className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg bg-white text-slate-900 focus:ring-2 focus:ring-emerald-500 font-semibold disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 >
                   <option value="">
-                    {!watchedBranch || !watchedDept
+                    {!initialData && (!watchedBranch || !watchedDept)
                       ? '⚠️ Select Branch & Department first'
                       : 'Select Dynamic Designation'}
                   </option>
-                  {watchedBranch && watchedDept && dynamicDesignationOptions.map((opt) => (
+                  {(initialData || (watchedBranch && watchedDept)) && dynamicDesignationOptions.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
                     </option>

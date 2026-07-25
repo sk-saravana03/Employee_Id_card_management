@@ -27,7 +27,7 @@ export const EmployeeModal = ({ isOpen, onClose, onSubmit, employee = null, bran
         branch: employee.branch?._id || employee.branch || '',
         department: employee.department?._id || employee.department || '',
         joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : '',
-        noticePeriodDays: employee.noticePeriodDays || 30,
+        noticePeriodDays: employee.noticePeriodDays ?? 0,
         terminationDate: employee.terminationDate ? new Date(employee.terminationDate).toISOString().split('T')[0] : '',
       });
     } else {
@@ -42,7 +42,7 @@ export const EmployeeModal = ({ isOpen, onClose, onSubmit, employee = null, bran
         branch: branches[0]?._id || '',
         department: departments[0]?._id || '',
         joiningDate: new Date().toISOString().split('T')[0],
-        noticePeriodDays: 30,
+        noticePeriodDays: 0,
         terminationDate: '',
       });
     }

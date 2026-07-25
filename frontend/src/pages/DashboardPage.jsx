@@ -1,318 +1,520 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
-import { Modal } from '../components/common/Modal';
-import { authService } from '../services/auth.service';
 import {
-  ShieldCheck,
+  Users,
+  CreditCard,
   UserCheck,
-  Lock,
   Building,
-  KeyRound,
+  Printer,
+  ShieldCheck,
   Clock,
-  Activity,
+  ArrowRight,
+  Sparkles,
   Layers,
-  FileSpreadsheet,
+  CheckCircle2,
+  Bell,
   AlertCircle,
-  Database,
-  CheckCircle,
-  Terminal,
-  RefreshCw
+  QrCode,
+  RefreshCw,
+  Activity,
+  FileText,
+  TrendingUp,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import NotificationBox from '../components/common/NotificationBox';
 import LiveIdCardTracker from '../components/idCard/LiveIdCardTracker';
+import axiosInstance from '../api/axiosInstance';
 
 export const DashboardPage = () => {
-  const { user, setUser } = useAuth();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [showAuditModal, setShowAuditModal] = useState(false);
-
+  const { user } = useAuth();
   const userRole = user?.role?.name || 'Employee';
   const branchName = user?.branch?.name || 'Corporate HQ';
   const deptName = user?.department?.name || 'Information Technology';
 
-  const handleTestTokenRefresh = async () => {
-    setIsRefreshing(true);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [stats, setStats] = useState({
+    employeesCount: 0,
+    totalIdCards: 0,
+    pendingHr: 0,
+    pendingAdmin: 0,
+    inQueue: 0,
+    printedCount: 0,
+    totalVisitors: 0,
+    checkedInVisitors: 0,
+    pendingVisitors: 0,
+  });
+
+  const fetchDashboardMetrics = async () => {
+    setIsLoadingStats(true);
     try {
-      const res = await authService.getCurrentUser();
-      if (res?.data?.user) {
-        setUser(res.data.user);
-        toast.success('Session token validated and refreshed successfully.');
+      // Execute parallel calls for dashboard telemetry
+      const [empRes, cardRes, visRes] = await Promise.allSettled([
+        axiosInstance.get('/employees'),
+        axiosInstance.get('/id-cards'),
+        axiosInstance.get('/visitors'),
+      ]);
+
+      let empCount = 0;
+      if (empRes.status === 'fulfilled' && empRes.value?.data?.data) {
+        empCount = Array.isArray(empRes.value.data.data)
+          ? empRes.value.data.data.length
+          : empRes.value.data.data.employees?.length || 0;
       }
+
+      let cards = [];
+      if (cardRes.status === 'fulfilled' && cardRes.value?.data?.data) {
+        cards = Array.isArray(cardRes.value.data.data)
+          ? cardRes.value.data.data
+          : cardRes.value.data.data.idCards || [];
+      }
+
+      let visitors = [];
+      if (visRes.status === 'fulfilled' && visRes.value?.data?.data) {
+        visitors = Array.isArray(visRes.value.data.data)
+          ? visRes.value.data.data
+          : visRes.value.data.data.visitors || [];
+      }
+
+      const pendingHr = cards.filter((c) => c.status === 'REQUESTED_PENDING_HR').length;
+      const pendingAdmin = cards.filter((c) => c.status === 'APPROVED_BY_HR').length;
+      const inQueue = cards.filter((c) => c.status === 'APPROVED_BY_ADMIN' || c.status === 'PRINTING').length;
+      const printedCount = cards.filter((c) => c.status === 'PRINTED' || c.status === 'DELIVERED').length;
+
+      const checkedInVisitors = visitors.filter((v) => v.status === 'CHECKED_IN').length;
+      const pendingVisitors = visitors.filter((v) => v.approvalStatus === 'PENDING' || v.status === 'EXPECTED').length;
+
+      setStats({
+        employeesCount: empCount,
+        totalIdCards: cards.length,
+        pendingHr,
+        pendingAdmin,
+        inQueue,
+        printedCount,
+        totalVisitors: visitors.length,
+        checkedInVisitors,
+        pendingVisitors,
+      });
     } catch (err) {
-      toast.error('Token refresh check failed.');
+      console.error('Error fetching dashboard telemetry:', err);
     } finally {
-      setIsRefreshing(false);
+      setIsLoadingStats(false);
     }
   };
 
+  useEffect(() => {
+    fetchDashboardMetrics();
+  }, []);
+
+  // Determine role-based action banner
+  const getActionBanner = () => {
+    if (userRole === 'HR/Admin' || userRole === 'Super Admin') {
+      const totalPending = stats.pendingHr + stats.pendingAdmin;
+      if (totalPending > 0) {
+        return {
+          title: `${totalPending} ID Card Requests Awaiting Review & Approval`,
+          message: `There are ${stats.pendingHr} pending HR verification requests and ${stats.pendingAdmin} pending Admin authorizations in the workflow queue.`,
+          link: '/id-cards',
+          linkText: 'Review Pending Cards',
+          color: 'bg-amber-500/10 border-amber-500/30 text-amber-900 dark:text-amber-200',
+          badgeBg: 'bg-amber-500 text-white',
+        };
+      }
+    }
+
+    if (userRole === 'Security Officer' || userRole === 'Super Admin') {
+      if (stats.checkedInVisitors > 0 || stats.pendingVisitors > 0) {
+        return {
+          title: `Security Gate Control: ${stats.checkedInVisitors} Active Visitors On Premise`,
+          message: `${stats.checkedInVisitors} visitor passes currently checked-in at security gates. ${stats.pendingVisitors} passes awaiting gate confirmation.`,
+          link: '/visitors',
+          linkText: 'Manage Gate Operations',
+          color: 'bg-blue-500/10 border-blue-500/30 text-blue-900 dark:text-blue-200',
+          badgeBg: 'bg-blue-600 text-white',
+        };
+      }
+    }
+
+    if (userRole === 'Printer Operator' || userRole === 'Super Admin') {
+      if (stats.inQueue > 0) {
+        return {
+          title: `Print Queue Telemetry: ${stats.inQueue} ID Cards Ready for Physical Printing`,
+          message: `High-volume thermal card printers have ${stats.inQueue} authorized cards queued for barcode and NFC chip encoding.`,
+          link: '/print-queue',
+          linkText: 'Open Print Hub',
+          color: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-900 dark:text-indigo-200',
+          badgeBg: 'bg-indigo-600 text-white',
+        };
+      }
+    }
+
+    return null;
+  };
+
+  const actionBanner = getActionBanner();
+
   return (
     <div className="space-y-6">
-      {/* Top Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-sm p-6 border border-slate-800 shadow-enterprise flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Corporate Welcome Banner */}
+      <div className="bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 text-white rounded-2xl p-6 border border-emerald-700/40 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30">
-              TERMINAL SESSION #ACTIVE
+            <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+              ENTERPRISE SECURITY PORTAL
             </span>
-            <span className="text-xs font-mono text-slate-400">
-              ID: <span className="text-white font-semibold">{user?.employeeId || 'EMP-00001'}</span>
+            <span className="text-xs font-mono text-slate-300">
+              ID: <span className="text-white font-bold">{user?.employeeId || 'EMP-00001'}</span>
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Welcome, {user?.firstName} {user?.lastName}
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            Welcome back, {user?.firstName} {user?.lastName}
           </h1>
-          <p className="text-xs text-slate-300 flex items-center gap-2">
+          <p className="text-xs text-emerald-100/80 flex items-center gap-2">
             <span>{branchName}</span> &bull; <span>{deptName}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Badge variant={userRole === 'Super Admin' ? 'danger' : 'info'} className="text-sm px-3 py-1">
-            Role: {userRole}
+          <Badge variant="info" className="text-xs font-bold px-3 py-1 bg-white/10 text-white border-white/20">
+            {userRole}
           </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTestTokenRefresh}
-            isLoading={isRefreshing}
-            className="border-slate-700 text-slate-200 hover:bg-slate-800"
+
+          <button
+            onClick={fetchDashboardMetrics}
+            className="p-2.5 text-xs font-bold text-white bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 transition-all"
+            title="Refresh Live Metrics"
           >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Refresh Session
-          </Button>
+            <RefreshCw className={`w-4 h-4 ${isLoadingStats ? 'animate-spin' : ''}`} />
+          </button>
+
+          <NavLink
+            to="/id-cards"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-900 bg-white hover:bg-emerald-50 rounded-xl shadow-sm transition-all transform active:scale-95"
+          >
+            <CreditCard className="w-4 h-4 text-emerald-600" /> ID Card Hub
+          </NavLink>
         </div>
       </div>
 
-      {/* Live Physical ID Card Stepper & Push Notification Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <LiveIdCardTracker />
-        </div>
-        <div className="lg:col-span-1">
-          <NotificationBox isWidget={true} />
-        </div>
-      </div>
+      {/* Role-Based Urgent Action Required Alert Banner */}
+      {actionBanner && (
+        <div className={`p-4 rounded-2xl border ${actionBanner.color} flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fade-in`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${actionBanner.badgeBg} shrink-0`}>
+              <AlertCircle className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-75">
+                Role Action Required &bull; {userRole}
+              </span>
+              <p className="text-sm font-bold">{actionBanner.title}</p>
+              <p className="text-xs opacity-80 mt-0.5">{actionBanner.message}</p>
+            </div>
+          </div>
 
-      {/* KPI Overview Grid */}
+          <NavLink
+            to={actionBanner.link}
+            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl shadow-sm transition-all"
+          >
+            {actionBanner.linkText} <ArrowRight className="w-4 h-4 text-emerald-600" />
+          </NavLink>
+        </div>
+      )}
+
+      {/* Real-Time Live KPI Overview Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-brand-blue">
+        <Card className="border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Authentication
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                System Members
               </p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
-                JWT + Cookie
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                {isLoadingStats ? '...' : stats.employeesCount || 0}
               </p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1 font-medium">
-                <CheckCircle className="w-3 h-3" /> HTTP-Only Secure Cookie
+              <p className="text-[11px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Active Employee DB
               </p>
             </div>
-            <div className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded text-brand-blue dark:text-blue-400">
-              <KeyRound className="w-5 h-5" />
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600">
+              <Users className="w-6 h-6" />
             </div>
           </div>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-500">
+        <Card className="border-l-4 border-l-amber-500 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Data Protection
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Pending ID Approvals
               </p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
-                AES-256-GCM
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                {isLoadingStats ? '...' : stats.pendingHr + stats.pendingAdmin}
               </p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1 font-medium">
-                <ShieldCheck className="w-3 h-3" /> Sensitive Fields Encrypted
+              <p className="text-[11px] text-amber-600 font-medium mt-0.5 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" /> 4-Stage Workflow Queue
               </p>
             </div>
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded text-emerald-600 dark:text-emerald-400">
-              <Lock className="w-5 h-5" />
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded-xl text-amber-600">
+              <CreditCard className="w-6 h-6" />
             </div>
           </div>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Access Level
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Active Gate Visitors
               </p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
-                {userRole}
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                {isLoadingStats ? '...' : stats.checkedInVisitors}
               </p>
-              <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-0.5 flex items-center gap-1 font-medium">
-                <UserCheck className="w-3 h-3" /> RBAC Enforced
+              <p className="text-[11px] text-blue-600 font-medium mt-0.5 flex items-center gap-1">
+                <UserCheck className="w-3.5 h-3.5" /> Checked-In On Premise
               </p>
             </div>
-            <div className="p-3 bg-purple-50 dark:bg-purple-950/60 rounded text-purple-600 dark:text-purple-400">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-xl text-blue-600">
+              <UserCheck className="w-6 h-6" />
             </div>
           </div>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-indigo-500 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Single Session
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Print Hub Queue
               </p>
-              <p className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
-                Enforced
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1">
+                {isLoadingStats ? '...' : stats.inQueue}
               </p>
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5 flex items-center gap-1 font-medium">
-                <Clock className="w-3 h-3" /> 30-Min Inactivity Timeout
+              <p className="text-[11px] text-indigo-600 font-medium mt-0.5 flex items-center gap-1">
+                <Printer className="w-3.5 h-3.5" /> Ready for Badge Print
               </p>
             </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/60 rounded text-amber-600 dark:text-amber-400">
-              <Activity className="w-5 h-5" />
+            <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl text-indigo-600">
+              <Printer className="w-6 h-6" />
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Grid Row: Session Diagnostic & Architecture Matrix */}
+      {/* Main Layout Grid: Left 2-Cols (Tracker & Digital Card) | Right 1-Col (Notifications & Info) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Active Session Diagnostics */}
-        <Card title="Active Session Diagnostics" subtitle="Current User Terminal Context" className="lg:col-span-1">
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">User Email</span>
-              <span className="font-mono text-slate-900 dark:text-slate-100 font-semibold">{user?.email}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Employee ID</span>
-              <span className="font-mono text-slate-900 dark:text-slate-100 font-semibold">{user?.employeeId}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Account Status</span>
-              <Badge variant="success">{user?.status || 'ACTIVE'}</Badge>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Email Verified</span>
-              <Badge variant={user?.isVerified ? 'success' : 'warning'}>
-                {user?.isVerified ? 'VERIFIED' : 'UNVERIFIED'}
-              </Badge>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-200 dark:border-slate-800">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Last Login IP</span>
-              <span className="font-mono text-slate-900 dark:text-slate-100">{user?.lastLoginIp || '127.0.0.1'}</span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Password Hash</span>
-              <span className="font-mono text-slate-900 dark:text-slate-100">bcrypt (12 rounds)</span>
-            </div>
-          </div>
+        {/* Left Column (2 Cols) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Live Physical ID Card Tracker & Analytical Estimated Processing Banner */}
+          <LiveIdCardTracker />
 
-          <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => setShowAuditModal(true)}
-            >
-              <Terminal className="w-3.5 h-3.5 mr-1.5" /> View System Audit Logs
-            </Button>
-          </div>
-        </Card>
+          {/* Digital Virtual Badge Card Preview & Dynamic Hologram Widget */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-6 shadow-md border border-slate-700/60 relative overflow-hidden">
+            {/* Background Decorative Watermark */}
+            <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+              <ShieldCheck className="w-64 h-64 text-emerald-400" />
+            </div>
 
-        {/* Phase Architecture Status */}
-        <Card
-          title="Enterprise Architecture Status Matrix"
-          subtitle="System Foundation & Future Module Roadmap"
-          className="lg:col-span-2"
-        >
-          <div className="space-y-4">
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded">
-              <div className="flex items-center gap-2 mb-1">
-                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span className="font-semibold text-xs text-emerald-900 dark:text-emerald-200 uppercase tracking-wider">
-                  Phase 1 Foundation (ACTIVE & COMPILED)
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-5 border-b border-slate-700/80">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span className="text-[10px] font-mono tracking-widest text-emerald-400 uppercase font-bold">
+                    Official Digital Identity Badge
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-white mt-1">
+                  Enterprise Virtual Access Pass
+                </h3>
+              </div>
+
+              <button
+                onClick={() => setShowQrModal(!showQrModal)}
+                className="px-3.5 py-1.5 text-xs font-bold text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 rounded-xl flex items-center gap-1.5 transition-all"
+              >
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                {showQrModal ? 'Hide Gate QR' : 'Show Gate Pass QR'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-5">
+              {/* Virtual Badge Front Card Visual */}
+              <div className="sm:col-span-2 bg-slate-800/80 border border-slate-700 rounded-xl p-4 flex gap-4 items-center">
+                <div className="w-16 h-16 rounded-xl bg-emerald-900/60 border-2 border-emerald-500/40 text-emerald-300 font-bold text-xl flex items-center justify-center shrink-0 shadow-inner">
+                  {user?.firstName ? user.firstName[0] : 'E'}
+                  {user?.lastName ? user.lastName[0] : 'M'}
+                </div>
+
+                <div className="space-y-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs font-mono text-emerald-400">{user?.employeeId || 'EMP-00001'}</p>
+                  <p className="text-[11px] text-slate-300 truncate">
+                    {deptName} &bull; {branchName}
+                  </p>
+                  <div className="pt-1 flex items-center gap-2">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      ACCESS: ACTIVE
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">ROLE: {userRole}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Security Hologram / Encrypted Gate Scan QR preview */}
+              <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-2">
+                <QrCode className="w-12 h-12 text-emerald-400" />
+                <p className="text-[10px] font-mono text-slate-300 uppercase tracking-wider">
+                  Gate Security Scanner QR
+                </p>
+                <span className="text-[9px] font-mono text-emerald-400/80 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-900">
+                  ENCRYPTED AES-256
                 </span>
               </div>
-              <p className="text-xs text-slate-700 dark:text-slate-300">
-                JWT Authentication, Refresh Tokens, HTTP-Only Cookies, Single Active Session Enforcement, AES-256 Encryption Utility, MongoDB Mongoose Models, RBAC Authorization Middleware, Nodemailer Email Dispatcher, Express Validator, and SAP/Oracle-style Enterprise UI.
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded bg-slate-50/50 dark:bg-slate-900/50 opacity-70">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    Employee Directory Module
-                  </span>
-                  <Badge variant="neutral">Phase 2</Badge>
+            {/* QR Scanner Expanded Modal Overlay */}
+            {showQrModal && (
+              <div className="mt-4 p-4 rounded-xl bg-white text-slate-900 border border-emerald-400 shadow-xl flex flex-col items-center space-y-2 animate-fade-in">
+                <p className="text-xs font-bold text-slate-900">Present to Security Gate Scanner</p>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                  <QrCode className="w-32 h-32 text-slate-900" />
                 </div>
-                <p className="text-[11px] text-slate-500">Employee lifecycle management, department assignments, document uploads.</p>
+                <p className="text-[10px] font-mono text-slate-500">
+                  Token: EMP-SEC-{user?.id?.substring(0, 8) || 'VAL-8829'}
+                </p>
               </div>
+            )}
+          </div>
 
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded bg-slate-50/50 dark:bg-slate-900/50 opacity-70">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    ID Card Printing Module
-                  </span>
-                  <Badge variant="neutral">Phase 2</Badge>
-                </div>
-                <p className="text-[11px] text-slate-500">Card template designer, queue management, RFID/Barcode encoding, printer status.</p>
-              </div>
-
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded bg-slate-50/50 dark:bg-slate-900/50 opacity-70">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    Gate Access & Security
-                  </span>
-                  <Badge variant="neutral">Phase 3</Badge>
-                </div>
-                <p className="text-[11px] text-slate-500">Turnstile scanner API, real-time validation, visitor management, access logs.</p>
-              </div>
-
-              <div className="p-3 border border-slate-200 dark:border-slate-800 rounded bg-slate-50/50 dark:bg-slate-900/50 opacity-70">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    Analytics & AI Assistant
-                  </span>
-                  <Badge variant="neutral">Phase 3</Badge>
-                </div>
-                <p className="text-[11px] text-slate-500">Executive dashboard analytics, card usage trends, AI identity verification support.</p>
-              </div>
+          {/* Quick Enterprise Workspace Actions Grid */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                Quick Enterprise Workspace Shortcuts
+              </h3>
+              <span className="text-[11px] font-mono text-slate-400">Role: {userRole}</span>
             </div>
-          </div>
-        </Card>
-      </div>
 
-      {/* Audit Log Modal */}
-      <Modal
-        isOpen={showAuditModal}
-        onClose={() => setShowAuditModal(false)}
-        title="System Security Audit Trail"
-        footer={
-          <Button variant="secondary" size="sm" onClick={() => setShowAuditModal(false)}>
-            Close Terminal
-          </Button>
-        }
-      >
-        <div className="space-y-3 font-mono text-xs">
-          <div className="p-2.5 bg-slate-950 text-slate-300 rounded border border-slate-800">
-            <p className="text-emerald-400 font-bold">[LOGIN_SUCCESS]</p>
-            <p className="text-[11px] text-slate-400">User: {user?.email} | IP: 127.0.0.1</p>
-            <p className="text-[10px] text-slate-500 mt-1">{new Date().toISOString()}</p>
-          </div>
-          <div className="p-2.5 bg-slate-950 text-slate-300 rounded border border-slate-800">
-            <p className="text-blue-400 font-bold">[SESSION_INITIATED]</p>
-            <p className="text-[11px] text-slate-400">Single Active Session Enforced: TRUE</p>
-            <p className="text-[10px] text-slate-500 mt-1">{new Date().toISOString()}</p>
-          </div>
-          <div className="p-2.5 bg-slate-950 text-slate-300 rounded border border-slate-800">
-            <p className="text-purple-400 font-bold">[RBAC_AUTHORIZATION_VERIFIED]</p>
-            <p className="text-[11px] text-slate-400">Role Matrix Verified: {userRole}</p>
-            <p className="text-[10px] text-slate-500 mt-1">{new Date().toISOString()}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <NavLink
+                to="/id-cards"
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-emerald-700">
+                      ID Card Management Hub
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {stats.pendingHr + stats.pendingAdmin > 0
+                        ? `${stats.pendingHr + stats.pendingAdmin} Approvals Pending`
+                        : 'Submit & Track ID Card Requests'}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-700 transition-transform group-hover:translate-x-1" />
+              </NavLink>
+
+              <NavLink
+                to="/visitors"
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700">
+                      Visitor & Gate Passes
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {stats.checkedInVisitors > 0
+                        ? `${stats.checkedInVisitors} Active On Premise`
+                        : 'Gate Check-In / Register Visitor'}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-700 transition-transform group-hover:translate-x-1" />
+              </NavLink>
+
+              <NavLink
+                to="/employees"
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/40 transition-all flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-purple-700">
+                      Employee Directory
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {stats.employeesCount > 0 ? `${stats.employeesCount} Directory Members` : 'Manage Active User Database'}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
+              </NavLink>
+
+              <NavLink
+                to="/print-queue"
+                className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                    <Printer className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">
+                      Print Queue Hub
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {stats.inQueue > 0 ? `${stats.inQueue} Cards Ready in Queue` : 'Hardware Printers & Telemetry'}
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-700 transition-transform group-hover:translate-x-1" />
+              </NavLink>
+            </div>
           </div>
         </div>
-      </Modal>
+
+        {/* Right Column (1 Col): Notifications Box & Security Policy Governance */}
+        <div className="lg:col-span-1 space-y-6">
+          {/* Notification Box Widget */}
+          <NotificationBox isWidget={true} />
+
+          {/* Quick System Governance & Operational Status */}
+          <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <h4 className="text-xs font-bold tracking-tight">Security & Policy Governance</h4>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Physical ID card requests follow strict 4-stage validation (Employee ➔ HR/Manager Approval ➔ Admin Authorization ➔ Printer Queue). Visitor passes are registered at the security gate and accepted by HR/Admin.
+            </p>
+            <div className="pt-3 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+              <span>Status: OPERATIONAL</span>
+              <span className="text-emerald-400 font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                100% ONLINE
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+
+export default DashboardPage;
+

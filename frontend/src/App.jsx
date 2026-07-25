@@ -20,6 +20,11 @@ import { UsersPage } from './pages/UsersPage';
 import { IdCardManagementPage } from './pages/IdCardManagementPage';
 import { PrintQueuePage } from './pages/PrintQueuePage';
 import { VisitorManagementPage } from './pages/VisitorManagementPage';
+import { AttendancePage } from './pages/AttendancePage';
+import { DocumentsPage } from './pages/DocumentsPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { IdCardTemplatesPage } from './pages/IdCardTemplatesPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -66,6 +71,11 @@ export const App = () => {
                   <Route path="/id-cards" element={<IdCardManagementPage />} />
                   <Route path="/print-queue" element={<PrintQueuePage />} />
                   <Route path="/visitors" element={<VisitorManagementPage />} />
+                  <Route path="/attendance" element={<AttendancePage />} />
+                  <Route path="/documents" element={<DocumentsPage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/templates" element={<IdCardTemplatesPage />} />
                   {/* Default root redirect to dashboard */}
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 </Route>

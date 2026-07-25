@@ -56,9 +56,17 @@ const EmployeeSchema = new mongoose.Schema(
     },
     noticePeriodDays: {
       type: Number,
-      default: 30,
+      default: 0,
     },
     terminationDate: {
+      type: Date,
+      default: null,
+    },
+    isIntern: {
+      type: Boolean,
+      default: false,
+    },
+    internshipEndDate: {
       type: Date,
       default: null,
     },
@@ -71,9 +79,11 @@ const EmployeeSchema = new mongoose.Schema(
         'NOTICE_PERIOD',
         'AUTO_DEACTIVATED',
         'ARCHIVED',
+        'ARCHIVED_PAST_EMPLOYEE',
+        'INTERNSHIP_EXPIRED',
         'INACTIVE',
       ],
-      default: 'RECRUITMENT',
+      default: 'ACTIVE',
     },
     lifecycleHistory: [
       {

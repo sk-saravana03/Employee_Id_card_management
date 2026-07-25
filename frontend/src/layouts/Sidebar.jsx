@@ -18,6 +18,9 @@ import {
   Bell,
   FileSpreadsheet,
   Clock,
+  FileText,
+  Sliders,
+  Palette,
 } from 'lucide-react';
 
 export const Sidebar = () => {
@@ -59,10 +62,22 @@ export const Sidebar = () => {
           icon: UserCheck,
           roles: ['Super Admin', 'HR/Admin', 'Security Officer'],
         },
+        {
+          name: 'QR Attendance Terminal',
+          path: '/attendance',
+          icon: Clock,
+          roles: ['Super Admin', 'HR/Admin', 'Security Officer', 'Employee'],
+        },
+        {
+          name: 'Employee Documents',
+          path: '/documents',
+          icon: FileText,
+          roles: ['Super Admin', 'HR/Admin', 'Employee'],
+        },
       ],
     },
     {
-      title: 'ORGANIZATION & SECURITY',
+      title: 'ORGANIZATION & GOVERNANCE',
       items: [
         {
           name: 'Branch Governance',
@@ -81,6 +96,24 @@ export const Sidebar = () => {
           path: '/users',
           icon: ShieldAlert,
           roles: ['Super Admin', 'HR/Admin', 'Employee'],
+        },
+        {
+          name: 'Reports & Analytics',
+          path: '/reports',
+          icon: FileSpreadsheet,
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer'],
+        },
+        {
+          name: 'ID Card Templates',
+          path: '/templates',
+          icon: Palette,
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator'],
+        },
+        {
+          name: 'System Preferences',
+          path: '/settings',
+          icon: Sliders,
+          roles: ['Super Admin', 'HR/Admin'],
         },
       ],
     },
