@@ -14,7 +14,7 @@ const testAccounts = [
   { role: 'Printer Operator', email: 'patrick.miller@enterprise.com', pass: 'Patr8765', expectedStatus: 200 },
   { role: 'Security Officer', email: 'sam.officer@enterprise.com', pass: 'Samu4321', expectedStatus: 200 },
   { role: 'Employee (Active)', email: 'emily.davis@enterprise.com', pass: 'Emil1122', expectedStatus: 200 },
-  { role: 'Employee (Future Joining / Inactive)', email: 'isaac.newton@enterprise.com', pass: 'Isaa9988', expectedStatus: 403 },
+  { role: 'Employee (Future Joining / PRE_ACTIVATE)', email: 'isaac.newton@enterprise.com', pass: 'Isaa9988', expectedStatus: 200 },
 ];
 
 async function loginUser(email, password) {

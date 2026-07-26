@@ -207,8 +207,9 @@ export const createEmployee = async (req, res) => {
       terminationDate: terminationDate ? new Date(terminationDate) : null,
     };
 
+    const isFutureJoining = empData.joiningDate && empData.joiningDate > new Date();
     const initialStatus = calculateEmployeeStatus(empData);
-    empData.status = statusOverride || initialStatus;
+    empData.status = isFutureJoining ? 'PRE_ACTIVATE' : (statusOverride || initialStatus);
     empData.lifecycleHistory = [
       {
         status: empData.status,

@@ -423,67 +423,73 @@ export const DashboardPage = () => {
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-700 transition-transform group-hover:translate-x-1" />
               </NavLink>
 
-              <NavLink
-                to="/visitors"
-                className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
-                    <UserCheck className="w-4 h-4" />
+              {(userRole === 'Super Admin' || userRole === 'HR/Admin' || userRole === 'Security Officer') && (
+                <NavLink
+                  to="/visitors"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100 text-blue-700">
+                      <UserCheck className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700">
+                        Visitor & Gate Passes
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {stats.checkedInVisitors > 0
+                          ? `${stats.checkedInVisitors} Active On Premise`
+                          : 'Gate Check-In / Register Visitor'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700">
-                      Visitor & Gate Passes
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      {stats.checkedInVisitors > 0
-                        ? `${stats.checkedInVisitors} Active On Premise`
-                        : 'Gate Check-In / Register Visitor'}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-700 transition-transform group-hover:translate-x-1" />
-              </NavLink>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-700 transition-transform group-hover:translate-x-1" />
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/employees"
-                className="p-3.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/40 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
-                    <Users className="w-4 h-4" />
+              {(userRole === 'Super Admin' || userRole === 'HR/Admin') && (
+                <NavLink
+                  to="/employees"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/40 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-100 text-purple-700">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-purple-700">
+                        Employee Directory
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {stats.employeesCount > 0 ? `${stats.employeesCount} Directory Members` : 'Manage Active User Database'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 group-hover:text-purple-700">
-                      Employee Directory
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      {stats.employeesCount > 0 ? `${stats.employeesCount} Directory Members` : 'Manage Active User Database'}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
-              </NavLink>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-700 transition-transform group-hover:translate-x-1" />
+                </NavLink>
+              )}
 
-              <NavLink
-                to="/print-queue"
-                className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
-                    <Printer className="w-4 h-4" />
+              {(userRole === 'Super Admin' || userRole === 'HR/Admin' || userRole === 'Printer Operator') && (
+                <NavLink
+                  to="/print-queue"
+                  className="p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 transition-all flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-indigo-100 text-indigo-700">
+                      <Printer className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">
+                        Print Queue Hub
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        {stats.inQueue > 0 ? `${stats.inQueue} Cards Ready in Queue` : 'Hardware Printers & Telemetry'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700">
-                      Print Queue Hub
-                    </p>
-                    <p className="text-[10px] text-slate-500">
-                      {stats.inQueue > 0 ? `${stats.inQueue} Cards Ready in Queue` : 'Hardware Printers & Telemetry'}
-                    </p>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-700 transition-transform group-hover:translate-x-1" />
-              </NavLink>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-700 transition-transform group-hover:translate-x-1" />
+                </NavLink>
+              )}
             </div>
           </div>
         </div>

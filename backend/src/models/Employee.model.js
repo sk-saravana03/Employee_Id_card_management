@@ -82,6 +82,7 @@ const EmployeeSchema = new mongoose.Schema(
         'ARCHIVED_PAST_EMPLOYEE',
         'INTERNSHIP_EXPIRED',
         'INACTIVE',
+        'PRE_ACTIVATE',
       ],
       default: 'ACTIVE',
     },

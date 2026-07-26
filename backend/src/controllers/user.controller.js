@@ -163,7 +163,7 @@ export const createUser = async (req, res) => {
 
     const parsedJoiningDate = joiningDate ? new Date(joiningDate) : new Date();
     const isFutureJoining = parsedJoiningDate > new Date();
-    const computedStatus = status ? status : (isFutureJoining ? 'INACTIVE' : 'ACTIVE');
+    const computedStatus = isFutureJoining ? 'PRE_ACTIVATE' : (status || 'ACTIVE');
 
     // ── 5. Create System User with Full Details ──────────────────────────────
     const user = new User({
@@ -207,7 +207,7 @@ export const createUser = async (req, res) => {
         {
           status: computedStatus,
           date: new Date(),
-          reason: isFutureJoining ? 'Awaiting joining date activation' : 'Unified System User Account Provisioning',
+          reason: isFutureJoining ? 'Awaiting user portal manual activation (PRE_ACTIVATE state)' : 'Unified System User Account Provisioning',
           updatedBy: req.user._id,
         },
       ],

@@ -109,7 +109,7 @@ const UserSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+      enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PRE_ACTIVATE'],
       default: 'ACTIVE',
     },
     lastLoginAt: {

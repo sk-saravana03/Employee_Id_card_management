@@ -23,7 +23,7 @@ import VisitorPassPreview from '../components/visitor/VisitorPassPreview';
 export const VisitorManagementPage = () => {
   const { user } = useAuth();
   const userRole = user?.role?.name || '';
-  const canRegister  = ['Super Admin', 'Security Officer'].includes(userRole);
+  const canRegister  = ['Super Admin', 'Security Officer', 'HR/Admin'].includes(userRole);
   const canCleanup   = ['Super Admin', 'HR/Admin'].includes(userRole);
 
   const [visitors, setVisitors] = useState([]);

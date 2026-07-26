@@ -170,7 +170,7 @@ const seedDatabase = async () => {
         status: 'ACTIVE',
       },
       {
-        // FUTURE JOINING DATE -> Status INACTIVE until joining date!
+        // FUTURE JOINING DATE -> Status PRE_ACTIVATE until user manually activates on login!
         employeeId: 'EMP260000002',
         firstName: 'Isaac',
         lastName: 'Newton',
@@ -181,7 +181,7 @@ const seedDatabase = async () => {
         department: d1._id,
         designation: 'Lead Systems Architect',
         joiningDate: new Date('2026-09-01'), // Future Joining Date
-        status: 'INACTIVE',
+        status: 'PRE_ACTIVATE',
       },
     ];
 
@@ -221,7 +221,7 @@ const seedDatabase = async () => {
             {
               status: uData.status,
               date: new Date(),
-              reason: uData.status === 'INACTIVE' ? 'Awaiting future joining date' : 'Initial Seeder Onboarding',
+              reason: uData.status === 'PRE_ACTIVATE' ? 'Awaiting user manual activation (Pre-Activate State)' : 'Initial Seeder Onboarding',
             },
           ],
         });

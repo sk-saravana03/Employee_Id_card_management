@@ -42,7 +42,7 @@ export const Sidebar = () => {
           name: 'Employee Lifecycle',
           path: '/employees',
           icon: Users,
-          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
+          roles: ['Super Admin', 'HR/Admin'],
         },
         {
           name: 'Identity Mgmt (ID Cards)',
@@ -54,7 +54,7 @@ export const Sidebar = () => {
           name: 'Print Center Queue',
           path: '/print-queue',
           icon: Printer,
-          roles: ['Super Admin', 'HR/Admin', 'Printer Operator', 'Security Officer', 'Employee'],
+          roles: ['Super Admin', 'HR/Admin', 'Printer Operator'],
         },
         {
           name: 'Visitor Management',
@@ -95,7 +95,7 @@ export const Sidebar = () => {
           name: 'User Accounts Governance',
           path: '/users',
           icon: ShieldAlert,
-          roles: ['Super Admin', 'HR/Admin', 'Employee'],
+          roles: ['Super Admin', 'HR/Admin'],
         },
         {
           name: 'Reports & Analytics',

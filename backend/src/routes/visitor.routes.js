@@ -21,7 +21,7 @@ router.use(verifySession);
 // Admins (HR/Admin) can VIEW but NOT CREATE visitor passes — only Security Officers register at gate
 router.post(
   '/register',
-  authorize('Super Admin', 'Security Officer'),
+  authorize('Super Admin', 'Security Officer', 'HR/Admin'),
   registerVisitor
 );
 

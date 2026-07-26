@@ -140,10 +140,11 @@ export const UsersPage = () => {
         <select
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          className="px-3 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
         >
           <option value="">All Statuses</option>
           <option value="ACTIVE">Active</option>
+          <option value="PRE_ACTIVATE">Pre-Activate (Future Joining)</option>
           <option value="INACTIVE">Inactive</option>
           <option value="SUSPENDED">Suspended</option>
         </select>

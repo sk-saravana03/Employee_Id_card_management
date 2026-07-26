@@ -55,20 +55,36 @@ const login = async (req, res) => {
       });
     }
 
-    // Joining Date Activation Check
-    if (user.joiningDate) {
-      const now = new Date();
-      const joining = new Date(user.joiningDate);
-      if (now >= joining && user.status === 'INACTIVE') {
-        user.status = 'ACTIVE';
-        await user.save();
-        console.log(`[Auth Controller] Auto-activated account on joining date: ${user.email}`);
-      } else if (now < joining) {
-        return res.status(403).json({
-          success: false,
-          message: `Account is inactive until joining date (${joining.toLocaleDateString()}). Access will be enabled on your joining date.`,
-        });
+    // Joining Date Activation & Manual PRE_ACTIVATE Portal Activation Check
+    if (user.status === 'PRE_ACTIVATE' || (user.joiningDate && user.status === 'INACTIVE')) {
+      user.status = 'ACTIVE';
+      await user.save();
+
+      // Synchronize linked Employee record
+      try {
+        const employee = await Employee.findOne({ email: user.email });
+        if (employee) {
+          employee.status = 'ACTIVE';
+          employee.lifecycleHistory.push({
+            status: 'ACTIVE',
+            date: new Date(),
+            reason: 'Manual account activation via user login portal (PRE_ACTIVATE state cleared)',
+          });
+          await employee.save();
+        }
+      } catch (empErr) {
+        console.warn('[Auth Controller] Linked employee activation sync skipped:', empErr.message);
       }
+
+      await recordAuditLog({
+        userId: user._id,
+        action: 'USER_MANUALLY_ACTIVATED_VIA_LOGIN',
+        module: 'AUTH',
+        details: { email: user.email, previousState: 'PRE_ACTIVATE' },
+        req,
+      });
+
+      console.log(`[Auth Controller] User manually activated account on login: ${user.email}`);
     }
 
     if (user.status !== 'ACTIVE') {

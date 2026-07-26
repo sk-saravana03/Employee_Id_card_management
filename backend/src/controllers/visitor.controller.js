@@ -1,5 +1,6 @@
 import Visitor from '../models/Visitor.model.js';
 import Employee from '../models/Employee.model.js';
+import User from '../models/User.model.js';
 import { recordAuditLog } from '../services/audit.service.js';
 import { sendVisitorApprovedEmail, sendVisitorRejectedEmail } from '../services/email.service.js';
 
@@ -111,9 +112,40 @@ export const registerVisitor = async (req, res) => {
       validityHours = 12, // configurable validity window (default 12h)
     } = req.body;
 
-    const hostEmployee = await Employee.findById(employeeToVisit);
+    let hostEmployee = null;
+    if (employeeToVisit) {
+      hostEmployee = await Employee.findById(employeeToVisit);
+      if (!hostEmployee) {
+        const hostUser = await User.findById(employeeToVisit);
+        if (hostUser) {
+          hostEmployee = await Employee.findOne({ email: hostUser.email.toLowerCase() });
+          if (!hostEmployee) {
+            hostEmployee = await Employee.create({
+              employeeId: hostUser.employeeId,
+              firstName: hostUser.firstName,
+              lastName: hostUser.lastName,
+              email: hostUser.email.toLowerCase(),
+              phone: hostUser.phone || '',
+              designation: hostUser.designation || 'Staff Member',
+              branch: hostUser.branch || null,
+              department: hostUser.department || null,
+              joiningDate: hostUser.joiningDate || new Date(),
+              status: hostUser.status || 'ACTIVE',
+            });
+          }
+        } else {
+          hostEmployee = await Employee.findOne({
+            $or: [{ employeeId: String(employeeToVisit).toUpperCase() }, { email: String(employeeToVisit).toLowerCase() }],
+          });
+        }
+      }
+    }
+
     if (!hostEmployee) {
-      return res.status(404).json({ success: false, message: 'Target host employee not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Target host employee not found. Please select a valid employee from the list.',
+      });
     }
 
     const passNumber = `VIS-${Math.floor(100000 + Math.random() * 900000)}`;

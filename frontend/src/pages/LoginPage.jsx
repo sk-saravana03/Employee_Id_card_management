@@ -101,7 +101,7 @@ export const LoginPage = () => {
       title: 'Security Officer',
       subtitle: 'Gate Control & Visitors',
       email: 'sam.officer@enterprise.com',
-      pass: 'Samo4321',
+      pass: 'Samu4321',
       icon: UserCheck,
       color: 'border-blue-500/50 text-blue-400 bg-blue-950/20 hover:bg-blue-950/40',
       badgeBg: 'bg-blue-600 text-white',

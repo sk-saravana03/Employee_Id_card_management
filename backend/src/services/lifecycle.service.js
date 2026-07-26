@@ -29,9 +29,12 @@ export const calculateEmployeeStatus = (employee) => {
   // 2. Joining checks
   if (joining && !isNaN(joining.getTime())) {
     if (now >= joining) {
-      return 'ACTIVE';
+      if (employee.status === 'PRE_ACTIVATE' || employee.status === 'WAITING_FOR_JOINING' || employee.status === 'INACTIVE') {
+        return 'ACTIVE';
+      }
+      return employee.status || 'ACTIVE';
     } else {
-      return 'WAITING_FOR_JOINING';
+      return 'PRE_ACTIVATE';
     }
   }
 
